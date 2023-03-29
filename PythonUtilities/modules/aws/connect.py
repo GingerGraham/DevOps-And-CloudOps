@@ -31,7 +31,7 @@ def aws_connect(profile, region):
     """
 
     try:
-        logging.debug("Function: _aws_connect() started with args: profile = {}, region = {}".format(profile, region))
+        logging.debug(f"Function: _aws_connect() started with args: profile = {profile}, region = {region}")
 
         logging.info("Connecting to AWS")
 
