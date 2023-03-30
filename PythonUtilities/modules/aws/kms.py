@@ -6,20 +6,134 @@
 # Import global modules
 import logging
 
+# Import local modules
+import modules.output as output
+
+# Import third party modules - see requirements.txt
+from botocore.exceptions import ClientError
+
 # To do
 # - Add a function to check if a KMS Key ID already exists - determine what we should return if it does exist
 # - Add a function to create a KMS Key ID
 # - Add an internal function to create a boto3 kms client session
 # - Add a function to print the details of a KMS Key ID to logging.info
 
-def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=None, kms_key_alias=None):
+def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=None, kms_key_alias=None, kms_key_id=None):
     """Check Existing KMS Key
+
+    This function checks if a KMS Key exists either by KMS Key Alias or KMS Key ID; where both are provided the KMS Key ID is used.
+
     """
     try:
-        # Check if the KMS Key ID already exists
-        if kms_key_alias is None:
-            logging.error("KMS Key Alias not provided")
+        logging.debug(f"Function: check_existing_kms_key() started with args: aws_session = {aws_session}, kms_client = {kms_client}, kms_key_region = {kms_key_region}, kms_key_alias = {kms_key_alias}")
+
+        logging.info(f"Checking if KMS Key {kms_key_alias} already exists")
+
+        if aws_session == None and kms_client == None:
+            logging.error("No AWS Session or KMS Client provided")
+            return 1
+
+        if kms_key_alias == None and kms_key_id == None:
+            logging.error("No KMS Key Alias or KMS Key ID provided")
+            return 1
+
+        if kms_client == None:
+            kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
+
+        # Using _check_existing_kms_key_id() to check if a KMS Key ID already exists
+        key_arn = _check_existing_kms_key_id(kms_client=kms_client, kms_key_id=kms_key_id)
+
+        if key_arn == False:
+            key_arn = _check_existing_kms_key_alias(kms_client=kms_client, kms_key_alias=kms_key_id)
+
+        if key_arn == False:
+            logging.info(f"KMS Key {kms_key_alias} does not exist")
+            logging.debug(f"Function: check_existing_kms_key() completed")
             return False
+
+        if key_arn == 1:
+            logging.error(f"Error checking KMS Key {kms_key_alias}")
+            logging.debug(f"Function: check_existing_kms_key() completed")
+            return 1
+
+        logging.info(f"KMS Key {kms_key_alias} already exists")
+        logging.debug(f"Function: check_existing_kms_key() completed")
+        return key_arn
+
+    except:
+        logging.error(f"Unexpected error in check_existing_kms_key()")
+        return 1
+
+
+def _check_existing_kms_key_id(kms_client=None, kms_key_id=None):
+    """ Check Existing KMS Key ID
+
+    This function checks if a KMS Key ID already exists; if it does it returns the KMS Key ARN.
+
+    Args:
+        kms_client (boto3.client): A boto3 KMS client session
+        kms_key_id (str): A KMS Key ID
+
+    Returns:
+        str: The KMS Key ARN
+
+    """
+    try:
+        logging.debug(f"Function: _check_existing_kms_key_id() started with args: kms_client = {kms_client}, kms_key_id = {kms_key_id}")
+
+        logging.info(f"Checking if KMS Key ID {kms_key_id} already exists")
+
+        if kms_client == None:
+            logging.error("No KMS Client provided")
+            return 1
+
+        if kms_key_id == None:
+            logging.error("No KMS Key ID provided")
+            return 1
+
+        keys_list = kms_client.list_keys()
+        for key in keys_list['Keys']:
+            key_id = key['KeyId']
+            key_arn = kms_client.describe_key(KeyId=key_id)['KeyMetadata']['Arn']
+            if key_id == kms_key_id:
+                logging.info(f"KMS Key ID {kms_key_id} already exists")
+                logging.debug(f"Function: _check_existing_kms_key_id() completed")
+                return key_arn
+
+        logging.info(f"KMS Key ID {kms_key_id} does not exist")
+        logging.debug(f"Function: _check_existing_kms_key_id() completed")
+        return False
+
+    except:
+        logging.error(f"Unexpected error in _check_existing_kms_key_id()")
+        return 1
+
+
+def _check_existing_kms_key_alias(kms_client=None, kms_key_alias=None):
+    """Check Existing KMS Key Alias
+
+    This function checks if a KMS Key Alias already exists; if it does it returns the KMS Key ARN.
+
+    Args:
+        kms_client (boto3.client): A boto3 KMS client session
+        kms_key_alias (str): A KMS Key Alias
+
+    Returns:
+        str: The KMS Key ARN
+
+    """
+    try:
+        logging.debug(f"Function: _check_existing_kms_key_alias() started with args: kms_client = {kms_client}, kms_key_alias = {kms_key_alias}")
+
+        logging.info(f"Checking if KMS Key Alias {kms_key_alias} already exists")
+
+        if kms_client == None:
+            logging.error("No KMS Client provided")
+            return 1
+
+        if kms_key_alias == None:
+            logging.error("No KMS Key Alias provided")
+            return 1
 
         # Check if the KMS Key Alias already exists
         keys_list = kms_client.list_keys()
@@ -29,9 +143,50 @@ def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=Non
             key_aliases = kms_client.list_aliases(KeyId=key_id)
             for key_alias in key_aliases['Aliases']:
                 if key_alias['AliasName'] == kms_key_alias:
-                    logging.info("KMS Key ID {0} already exists".format(key_id))
-                    return True
+                    logging.info(f"KMS Key ID {key_id} already exists")
+                    logging.debug(f"Function: _check_existing_kms_key_alias() completed")
+                    return key_arn
+
+        logging.info(f"KMS Key Alias {kms_key_alias} does not exist")
+        logging.debug(f"Function: _check_existing_kms_key_alias() completed")
         return False
+
+
+def _create_kms_client(aws_session=None, kms_key_region=None):
+    """Create KMS Client
+    """
+    try:
+        logging.debug(f"Function: _create_kms_client() started with args: aws_session = {aws_session}, kms_key_region = {kms_key_region}")
+
+        logging.info(f"Creating KMS Client")
+
+        if aws_session == None:
+            logging.error("No AWS Session provided")
+            return False
+
+        if kms_key_region == None:
+            kms_client = aws_session.client('kms')
+
+        if kms_key_region != None:
+            kms_client = aws_session.client('kms', region_name=kms_key_region)
+
+        logging.debug(f"KMS Client created: {kms_client}")
+
+        logging.debug(f"Function: _create_kms_client() completed")
+
+        return kms_client
+
+    except ClientError as e:
+        logging.error(f"Client Error in _create_kms_client(): {e}")
+        return 1
+    except TypeError as e:
+        logging.error(f"Type Error in _create_kms_client(): {e}")
+        return 1
+    except Exception as e:
+        logging.error(f"Unexpected error in _create_kms_client(): {e}")
+        return 1
+
+        # Create a KMS Client session
 
 
 # Notes

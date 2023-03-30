@@ -92,7 +92,7 @@ def check_existing_dynamodb_table(aws_session=None, dynamodb_client=None, dynamo
 def create_dynamodb_table(aws_session, dynamodb_table_name, dynamodb_table_region, dynamodb_table_read_capacity=5, dynamodb_table_write_capacity=5, dynamodb_table_attributes=[], dynamodb_table_key_schema=[], dynamodb_table_billing_mode="PROVISIONED", aws_account_id=None, list_only=False):
     """Create a DynamoDB Table based on the passed arguments
 
-    This function creates a DynamoDB Table based on the passed arguments.
+    This function creates a DynamoDB Table based on the passed arguments.  Includes a call to check_existing_dynamodb_table to check if the DynamoDB Table already exists.
 
     Args:
         aws_account_id (str): AWS Account ID

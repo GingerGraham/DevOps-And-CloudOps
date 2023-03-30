@@ -184,3 +184,34 @@ def _check_aws_vars():
     except:
         logging.error("Unexpected error in _check_aws_vars: {0}".format(sys.exc_info()[0]))
         return 1
+
+
+def lookup_aws_account_id(aws_session):
+    """Lookup AWS Account ID
+
+    This function looks up the AWS Account ID using the AWS Session.
+
+    Args:
+        aws_session (boto3.session.Session): AWS Session
+
+    Returns:
+        str: AWS Account ID
+    """
+    try:
+        logging.debug(f"Function: lookup_aws_account_id() started with args: aws_session = {aws_session}")
+
+        logging.debug("Looking up AWS Account ID")
+
+        aws_account_id = aws_session.client('sts').get_caller_identity().get('Account')
+
+        logging.debug(f"Returned AWS Account ID: {aws_account_id}")
+        logging.debug("Function: _lookup_aws_account_id() completed")
+
+        return aws_account_id
+
+    except ClientError as e:
+        logging.error(f"Error in _lookup_aws_account_id: {e}")
+        return 1
+    except:
+        logging.error(f"Unexpected error in _lookup_aws_account_id: {sys.exc_info()[0]}")
+        return 1
