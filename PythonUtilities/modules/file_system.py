@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 
 """File system utilities
+
+This module contains functions for working with the file system.
+
+Functions:
+
+    create_log_file(log_path): Create Log File
+
 """
 
 
@@ -43,12 +50,12 @@ def create_log_file(log_path):
 
         # Test if the directory exists
         if not os.path.exists(directory):
-            print("Creating directory: {0}".format(directory))
+            print(f"Directory does not exist: {directory}")
             os.makedirs(directory)
 
         # Test if the file exists
         if not os.path.exists(log_path):
-            print("Creating file: {0}".format(log_path))
+            print(f"Creating log file: {log_path}")
             open(log_path, 'a').close()
 
         # Return the path
@@ -56,5 +63,5 @@ def create_log_file(log_path):
 
 
     except Exception as e:
-        print("An error occurred in create_log_file: {}".format(e))
+        print(f"An error occurred in create_log_file: {e}")
         return 1

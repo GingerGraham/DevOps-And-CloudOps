@@ -8,6 +8,7 @@ Functions:
 
     check_existing_dynamodb_table(aws_session, dynamodb_table_name, dynamodb_table_region)
     create_dynamodb_table(aws_account_id, aws_session, dynamodb_table_name, dynamodb_table_region, dynamodb_table_read_capacity=5, dynamodb_table_write_capacity=5, dynamodb_table_attributes=[], dynamodb_table_key_schema=[], dynamodb_table_billing_mode="PROVISIONED", list_only=False)
+    print_dynamodb_table_details(aws_session, dynamodb_table_name, dynamodb_table_region)
 
 """
 
