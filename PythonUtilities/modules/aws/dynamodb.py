@@ -4,6 +4,10 @@
 
 This module contains functions to interact with DynamoDB.
 
+Author: Graham Watts
+Date: 2023-04-03
+Version: 1.0.0
+
 Functions:
 
     check_existing_dynamodb_table(aws_session, dynamodb_table_name, dynamodb_table_region)

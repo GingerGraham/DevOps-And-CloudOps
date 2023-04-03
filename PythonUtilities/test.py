@@ -46,4 +46,4 @@ key_exists = kms.check_existing_kms_key(aws_session=aws_session, kms_key_alias=k
 logging.info(f"key_exists={key_exists}")
 
 if key_exists == False:
-    kms_key_alias = kms.create_symmetric_encrypt_key(aws_session=aws_session, kms_key_alias=kms_key_alias)
+    kms_key_alias = kms.create_singleregion_encrypt_key(aws_session=aws_session, kms_key_alias=kms_key_alias)
