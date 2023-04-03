@@ -10,7 +10,7 @@ import logging
 import modules.output as output
 
 # Import third party modules - see requirements.txt
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ParamValidationError
 
 # To do
 # - Add a function to check if a KMS Key ID already exists - determine what we should return if it does exist
@@ -27,8 +27,6 @@ def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=Non
     try:
         logging.debug(f"Function: check_existing_kms_key() started with args: aws_session = {aws_session}, kms_client = {kms_client}, kms_key_region = {kms_key_region}, kms_key_alias = {kms_key_alias}")
 
-        logging.info(f"Checking if KMS Key {kms_key_alias} already exists")
-
         if aws_session == None and kms_client == None:
             logging.error("No AWS Session or KMS Client provided")
             return 1
@@ -37,14 +35,21 @@ def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=Non
             logging.error("No KMS Key Alias or KMS Key ID provided")
             return 1
 
+        if kms_client == None and kms_key_region == None:
+            kms_key_region = aws_session.region_name
+            logging.info(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+
         if kms_client == None:
             kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
 
-        # Using _check_existing_kms_key_id() to check if a KMS Key ID already exists
-        key_arn = _check_existing_kms_key_id(kms_client=kms_client, kms_key_id=kms_key_id)
+        logging.info(f"Checking if KMS Key ID {kms_key_id} or KMS Key Alias {kms_key_alias} already exists")
 
-        if key_arn == False:
-            key_arn = _check_existing_kms_key_alias(kms_client=kms_client, kms_key_alias=kms_key_id)
+        # Using _check_existing_kms_key_id() to check if a KMS Key ID already exists
+        if kms_key_id != None:
+            key_arn = _check_existing_kms_key_id(kms_client=kms_client, kms_key_id=kms_key_id)
+
+        if kms_key_alias != None:
+            key_arn = _check_existing_kms_key_alias(kms_client=kms_client, kms_key_alias=kms_key_alias)
 
         if key_arn == False:
             logging.info(f"KMS Key {kms_key_alias} does not exist")
@@ -62,6 +67,128 @@ def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=Non
 
     except:
         logging.error(f"Unexpected error in check_existing_kms_key()")
+        return 1
+
+
+def create_symmetric_encrypt_key(aws_session=None, kms_client=None, kms_key_region=None, kms_key_alias=None, kms_key_spec='SYMMETRIC_DEFAULT', dry_run=False):
+    """Create KMS Key
+
+    This function creates a KMS Key.
+
+    """
+    try:
+        logging.debug(f"Function: create_symmetric_encrypt_key() started with args: aws_session = {aws_session}, kms_client = {kms_client}, kms_key_region = {kms_key_region}, kms_key_alias = {kms_key_alias}, kms_key_spec = {kms_key_spec}, dry_run = {dry_run}")
+
+        if aws_session == None and kms_client == None:
+            logging.error("No AWS Session or KMS Client provided")
+            return 1
+
+        if aws_session == None and kms_key_region == None:
+            kms_key_region = aws_session.region_name
+            logging.info(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+
+        if kms_client == None:
+            kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
+
+        logging.info(f"Creating KMS Key in region {kms_key_region} with spec {kms_key_spec}")
+
+        # Check if the KMS Key already exists using check_existing_kms_key()
+        key_arn = check_existing_kms_key(aws_session=aws_session, kms_client=kms_client, kms_key_region=kms_key_region, kms_key_alias=kms_key_alias)
+
+        if key_arn == 1:
+            logging.error(f"Error creating KMS Key {kms_key_alias}")
+            logging.debug(f"Function: create_symmetric_encrypt_key() completed")
+            return 1
+
+        if key_arn != False:
+            logging.info(f"KMS Key {kms_key_alias} already exists")
+            logging.debug(f"Function: create_symmetric_encrypt_key() completed")
+            return key_arn
+
+        # Create the KMS Key
+        # To do - create key or report if list only
+        if dry_run == True:
+            logging.info(f"Dry run only - Would create single region symmetric KMS Key {kms_key_alias} for ENCRYPT_DECRYPT with spec {kms_key_spec}")
+            logging.debug(f"Function: create_symmetric_encrypt_key() completed")
+            return 0
+
+        kms_key = kms_client.create_key(
+            Description=f"Symmetric KMS Key for ENCRYPT_DECRYPT with spec {kms_key_spec}",
+            KeyUsage='ENCRYPT_DECRYPT',
+            KeySpec=kms_key_spec,
+            MultiRegion=False
+        )
+
+        key_arn = kms_key['KeyMetadata']['Arn']
+
+        # Add Alias to KMS Key
+        alias_success = add_kms_key_alias(aws_session=aws_session, kms_client=kms_client, kms_key_region=kms_key_region, kms_key_alias=kms_key_alias, kms_key_arn=key_arn, dry_run=dry_run)
+
+        if alias_success == 1:
+            logging.error(f"Error creating KMS Key {kms_key_alias}")
+            logging.debug(f"Function: create_symmetric_encrypt_key() completed")
+            return 1
+
+        logging.debug(f"Function: create_symmetric_encrypt_key() completed")
+        return key_arn
+
+    except:
+        logging.error(f"Unexpected error in check_existing_kms_key()")
+        return 1
+
+
+def add_kms_key_alias(aws_session=None, kms_client=None, kms_key_region=None, kms_key_alias=None, kms_key_arn=None, dry_run=False):
+    """Add Alias to KMS Key
+    """
+    try:
+        logging.debug(f"Function: add_kms_key_alias() started with args: aws_session = {aws_session}, kms_client = {kms_client}, kms_key_region = {kms_key_region}, kms_key_alias = {kms_key_alias}, kms_key_arn = {kms_key_arn}, dry_run = {dry_run}")
+
+        logging.info(f"Adding Alias {kms_key_alias} to KMS Key {kms_key_arn}")
+
+        if kms_key_alias == None:
+            logging.error("No KMS Key Alias provided")
+            return 1
+
+        if kms_key_arn == None:
+            logging.error("No KMS Key ARN provided")
+            return 1
+
+        if aws_session == None and kms_client == None:
+            logging.error("No AWS Session or KMS Client provided")
+            return 1
+
+        if aws_session == None and kms_key_region == None:
+            kms_key_region = aws_session.region_name
+            logging.info(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+
+        if kms_client == None:
+            kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
+
+        if dry_run == True:
+            logging.info(f"Dry run only - Would add alias {kms_key_alias} to KMS Key {kms_key_arn}")
+            logging.debug(f"Function: add_kms_key_alias() completed")
+            return 0
+
+        # If KMS Key Alias does not have alias/ prefix, add it
+        if kms_key_alias.startswith("alias/") == False:
+            kms_key_alias = "alias/" + kms_key_alias
+
+        kms_client.create_alias(
+            AliasName=kms_key_alias,
+            TargetKeyId=kms_key_arn
+        )
+
+        logging.debug(f"Function: add_kms_key_alias() completed")
+        return 0
+
+    except ClientError as e:
+        logging.error(f"Client error in add_kms_key_alias(): {e}")
+        return 1
+    except ParamValidationError as e:
+        logging.error(f"Parameter validation error in add_kms_key_alias(): {e}")
+        return 1
+    except Exception as e:
+        logging.error(f"Unexpected error in add_kms_key_alias(): {e}")
         return 1
 
 
@@ -150,6 +277,10 @@ def _check_existing_kms_key_alias(kms_client=None, kms_key_alias=None):
         logging.info(f"KMS Key Alias {kms_key_alias} does not exist")
         logging.debug(f"Function: _check_existing_kms_key_alias() completed")
         return False
+
+    except Exception as e:
+        logging.error(f"Unexpected error in _check_existing_kms_key_alias(): {e}")
+        return 1
 
 
 def _create_kms_client(aws_session=None, kms_key_region=None):

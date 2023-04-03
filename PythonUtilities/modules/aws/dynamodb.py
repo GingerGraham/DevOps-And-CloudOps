@@ -21,7 +21,7 @@ import sys
 import modules.output as output
 
 # Import third-party modules
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ParamValidationError
 
 
 def check_existing_dynamodb_table(aws_session=None, dynamodb_client=None, dynamodb_table_name=None, dynamodb_table_region=None):
@@ -163,6 +163,9 @@ def create_dynamodb_table(aws_session, dynamodb_table_name, dynamodb_table_regio
     except TypeError as e:
         logging.error(f"Type Error in create_dynamodb_table: {e}")
         return 1
+    except ParamValidationError as e:
+        logging.error(f"Parameter Validation Error in create_dynamodb_table: {e}")
+        return 1
     except:
         logging.error(f"Unexpected error in create_dynamodb_table: {sys.exc_info()[0]}")
         return 1
@@ -260,6 +263,9 @@ def print_dynamobd_details (dynamodb_table_name, dynamodb_table_region, aws_sess
         return 1
     except TypeError as e:
         logging.error(f"Type Error in print_dynamodb_details: {e}")
+        return 1
+    except ParamValidationError as e:
+        logging.error(f"Parameter Validation Error in print_dynamodb_details: {e}")
         return 1
     except:
         logging.error(f"Unexpected error in print_dynamodb_details: {sys.exc_info()[0]}")
