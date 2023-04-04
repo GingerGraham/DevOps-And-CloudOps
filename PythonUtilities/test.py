@@ -30,6 +30,10 @@ region = "eu-west-2"
 
 aws_session = aws_connect.aws_connect(profile, region)
 
+if aws_session ==  1:
+    logging.error("Error in aws_connect")
+    sys.exit(1)
+
 # dynamodb_table_name = "test"
 
 # # db_exists = dynamodb.check_existing_dynamodb_table(aws_session=aws_session, dynamodb_table_name=dynamodb_table_name, dynamodb_table_region=region)
@@ -41,7 +45,7 @@ aws_session = aws_connect.aws_connect(profile, region)
 
 # dynamodb.print_dynamobd_details(aws_session=aws_session, dynamodb_table_name=dynamodb_table_name, dynamodb_table_region=region)
 
-kms_key_alias = "another_test_key"
+kms_key_alias = "another_test_key3"
 key_exists = kms.check_existing_kms_key(aws_session=aws_session, kms_key_alias=kms_key_alias)
 logging.info(f"key_exists={key_exists}")
 
