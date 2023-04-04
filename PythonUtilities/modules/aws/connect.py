@@ -27,6 +27,7 @@ def aws_connect(profile, region):
 
     Returns:
         aws_session (boto3.session.Session): AWS Session
+        1 (int): If an error occurs
 
     """
 
@@ -40,6 +41,7 @@ def aws_connect(profile, region):
             aws_session = boto3.Session(profile_name=profile,region_name=region)
             # Print AWS Session Details using _print_aws_session_details() and then return to main()
             _print_aws_session_details(aws_session)
+            logging.debug(f"Account ID: {lookup_aws_account_id(aws_session)}")
             logging.debug("Function: _aws_connect() completed")
             return aws_session
         # Test if AWS Session Token is set in the environment and if so use them to create a boto3 session
@@ -47,6 +49,7 @@ def aws_connect(profile, region):
             aws_session = boto3.Session()
             # Print AWS Session Details using _print_aws_session_details() and then return to main()
             _print_aws_session_details(aws_session)
+            logging.debug(f"Account ID: {lookup_aws_account_id(aws_session)}")
             logging.debug("Function: _aws_connect() completed")
             return aws_session
 
@@ -56,7 +59,7 @@ def aws_connect(profile, region):
         return 1
 
     except ClientError as e:
-        logging.error("Error in _aws_connect: {0}".format(e))
+        logging.error("Client Error in _aws_connect: {0}".format(e))
         return 1
     except:
         logging.error("Unexpected error in _aws_connect: {0}".format(sys.exc_info()[0]))

@@ -292,7 +292,7 @@ def add_kms_key_alias(aws_session=None, kms_client=None, kms_key_region=None, km
         logging.info(f"Adding Alias {kms_key_alias} to KMS Key {kms_key_arn}")
 
         # Check if the KMS Key Alias already exists using _check_existing_kms_key_alias()
-        alias_exists = _check_existing_kms_key_alias(aws_session=aws_session, kms_client=kms_client, kms_key_region=kms_key_region, kms_key_alias=kms_key_alias)
+        alias_exists = _check_existing_kms_key_alias(kms_client=kms_client, kms_key_alias=kms_key_alias)
 
         if alias_exists == 1:
             logging.error(f"Error checking for KMS Key Alias {kms_key_alias}")
