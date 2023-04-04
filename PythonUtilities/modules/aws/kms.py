@@ -5,8 +5,8 @@
 This module contains functions to manage AWS KMS Keys.
 
 Author: Graham Watts
-Date: 2023-04-03
-Version: 1.0.0
+Date: 2023-04-04
+Version: 1.0.1
 
 Classes:
     N/A
@@ -96,6 +96,9 @@ def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=Non
             return 1
 
         logging.info(f"Checking if KMS Key exists")
+
+        # Setting a default value for key_arn variable to False
+        key_arn = False
 
         if kms_key_arn != None:
             logging.debug(f"Checking KMS Key ARN {kms_key_arn}")
