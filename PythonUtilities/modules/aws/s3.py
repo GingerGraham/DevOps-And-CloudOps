@@ -15,47 +15,132 @@ import modules.output as output
 from botocore.exceptions import ClientError, ParamValidationError
 
 
-def _check_existing_s3_bucket(s3_client, bucket_name):
+def check_existing_s3_bucket(aws_session=None, s3_client=None , s3_name=None, s3_region=None)):
     """Check if an S3 Bucket already exists
 
     This function checks if an S3 Bucket matching the required configuration already exists.
 
     Args:
-        args (_type_): _description_
-        aws_account_id (_type_): _description_
-        aws_session (_type_): _description_
+        aws_session (session): AWS Session
+        s3_name (str): Name of the S3 Bucket
+        s3_region (str): Region of the S3 Bucket
+
+    Returns:
+        s3_arn (str): ARN of the S3 Bucket
+        False if the S3 Bucket does not exist
+        1 if an error occurs or the S3 Bucket is redirected or private
     """
     try:
-        # logging.debug("Function: _check_existing_s3_bucket() started")
-        logging.info(f"Checking if S3 Bucket {bucket_name} already exists")
+        logging.debug(f"Function: check_existing_s3_bucket() started with args: aws_session={aws_session}, s3_client={s3_client}, s3_name={s3_name}, s3_region={s3_region}")
+
+        if aws_session == None and s3_client == None:
+            logging.error("No AWS Session or S3 Client provided")
+            return 1
+
+        if s3_name == None:
+            logging.error("No S3 Bucket Name provided")
+            return 1
+
+        if s3_client == None and s3_region == None:
+            s3_region = aws_session.region_name
+            logging.warning(f"No S3 Bucket Region provided, using default region {s3_region}")
+
+        if s3_client == None:
+            s3_client = _create_s3_client(aws_session=aws_session, s3_region=s3_region)
+
+        if s3_client == 1:
+            logging.error(f"Error creating S3 Client")
+            logging.debug(f"Function: check_existing_s3_bucket() completed")
+            return 1
+
+        logging.info(f"Checking if S3 Bucket {s3_name} already exists in region {s3_region}")
 
         # Check if s3 bucket exists
-        if s3_client.head_bucket(Bucket=bucket_name):
-            logging.debug(f"Bucket {bucket_name} already exists")
-            return True
+        if s3_client.head_bucket(Bucket=s3_name):
+            logging.debug(f"Bucket {s3_name} already exists")
+            # Get arn of s3 bucket
+            s3_arn = s3_client.get_bucket_acl(Bucket=s3_name)['Owner']['ID']
+            logging.info(f"S3 Bucket {s3_name} already exists in region {s3_region}")
+            logging.debug(f"Function: check_existing_s3_bucket() completed")
+            return s3_arn
         else:
-            logging.debug(f"Bucket {bucket_name} does not exist")
+            logging.debug(f"Bucket {s3_name} does not exist")
+            logging.debug(f"Function: check_existing_s3_bucket() completed")
             return False
 
     except ClientError as e:
         if e.response['Error']['Code'] == '301':
-            logging.warning(f"[301] S3 Bucket {bucket_name} is redirected and may already exist in another account")
+            logging.warning(f"[301] S3 Bucket {s3_name} is redirected and may already exist in another account")
+            logging.debug(f"Function: check_existing_s3_bucket() completed")
             return 1
         if e.response['Error']['Code'] == '403':
-            logging.warning(f"[403] Private Bucket.  Forbidden access to S3 Bucket {bucket_name}, may exist in another account")
+            logging.warning(f"[403] Private Bucket.  Forbidden access to S3 Bucket {s3_name}, may exist in another account")
+            logging.debug(f"Function: check_existing_s3_bucket() completed")
             return 1
         if e.response['Error']['Code'] == '404':
-            logging.warning(f"[404] S3 Bucket {bucket_name} does not exist")
+            logging.warning(f"[404] S3 Bucket {s3_name} does not exist")
+            logging.debug(f"Function: check_existing_s3_bucket() completed")
             return False
-        logging.error(f"Client Error in _check_existing_s3_bucket: {e}")
+        logging.error(f"Client Error in check_existing_s3_bucket: {e}")
         return 1
     except TypeError as e:
-        logging.error(f"Type Error in _check_existing_s3_bucket: {e}")
+        logging.error(f"Type Error in check_existing_s3_bucket: {e}")
         return 1
     except:
-        logging.error(f"Unexpected error in _check_existing_s3_bucket: {sys.exc_info()[0]}")
+        logging.error(f"Unexpected error in check_existing_s3_bucket: {sys.exc_info()[0]}")
         return 1
 
+
+def create_s3_bucket(aws_session=None, s3_client=None, s3_name=None, s3_region=None, s3_versioning=True, s3_encryption=True, s3_kms_key_arn=None):
+
+
+def _create_s3_client(aws_session=None, s3_region=None):
+    """Create an S3 Client
+
+    This function creates an S3 Client.
+
+    Args:
+        aws_session (session): AWS Session
+        s3_region (str): Region of the S3 Bucket
+
+    Returns:
+        s3_client (client): S3 Client
+        1 if an error occurs
+    """
+    try:
+        logging.debug(f"Function: _create_s3_client() started with args: aws_session={aws_session}, s3_region={s3_region}")
+
+        if aws_session == None:
+            logging.error("No AWS Session provided")
+            return 1
+
+        if s3_region == None:
+            s3_region = aws_session.region_name
+            logging.warning(f"No S3 Bucket Region provided, using default region {s3_region}")
+
+        # Create an S3 client from scratch not using the existing aws_session
+        s3_client = aws_session.client('s3', region_name=s3_region)
+
+        if s3_client == 1:
+            logging.error(f"Error creating S3 Client")
+            logging.debug(f"Function: _create_s3_client() completed")
+            return 1
+
+        logging.debug(f"Function: _create_s3_client() completed")
+        return s3_client
+
+    except ClientError as e:
+        logging.error(f"Client Error in _create_s3_client: {e}")
+        return 1
+    except TypeError as e:
+        logging.error(f"Type Error in _create_s3_client: {e}")
+        return 1
+    except:
+        logging.error(f"Unexpected error in _create_s3_client: {sys.exc_info()[0]}")
+        return 1
+
+
+# Code below this line is legacy code that needs to be refactored
 
 def _create_s3_bucket(args, aws_account_id, aws_session):
     """Create an S3 Bucket based on the passed arguments
@@ -68,8 +153,8 @@ def _create_s3_bucket(args, aws_account_id, aws_session):
         aws_session (session): AWS Session
 
     Returns:
-        s3_bucket_name (str): Name of the S3 Bucket
-        s3_bucket_region (str): Region of the S3 Bucket
+        s3_name (str): Name of the S3 Bucket
+        s3_region (str): Region of the S3 Bucket
         kms_key_id (str): KMS Key ID
     """
     try:
@@ -165,12 +250,12 @@ def _create_s3_bucket(args, aws_account_id, aws_session):
         if _check_existing_s3_bucket(s3_client, args.bucket_name) is True:
             logging.info("S3 Bucket {0} already exists".format(args.bucket_name))
             # Store the S3 Bucket details
-            _store_s3_bucket_details(args.bucket_name, args.bucket_region, args.bucket_kms_key_id, args.bucket_encryption, kms_key_id, kms_key_alias)
+            _store_s3_details(args.bucket_name, args.bucket_region, args.bucket_kms_key_id, args.bucket_encryption, kms_key_id, kms_key_alias)
             return
 
         if args.list_only is True:
             logging.warning("List-only/dry-run is set, not creating S3 Bucket")
-            _store_s3_bucket_details(args.bucket_name, args.bucket_region, args.bucket_kms_key_id, args.bucket_encryption, kms_key_id, kms_key_alias)
+            _store_s3_details(args.bucket_name, args.bucket_region, args.bucket_kms_key_id, args.bucket_encryption, kms_key_id, kms_key_alias)
             return
 
         # If list-only/dry-run is not set and the bucket doesn't already exist then create the S3 Bucket and key
@@ -190,7 +275,7 @@ def _create_s3_bucket(args, aws_account_id, aws_session):
             s3_client.put_public_access_block(Bucket=args.bucket_name, PublicAccessBlockConfiguration=bucket_policy['PublicAccessBlockConfiguration'])
 
         # Store the S3 Bucket details
-        _store_s3_bucket_details(args.bucket_name, args.bucket_region, args.bucket_kms_key_id, args.bucket_encryption, kms_key_id, kms_key_alias)
+        _store_s3_details(args.bucket_name, args.bucket_region, args.bucket_kms_key_id, args.bucket_encryption, kms_key_id, kms_key_alias)
 
         # logging.debug("Function: _create_s3_bucket() completed")
 

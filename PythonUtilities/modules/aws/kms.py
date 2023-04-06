@@ -85,7 +85,7 @@ def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=Non
 
         if kms_client == None and kms_key_region == None:
             kms_key_region = aws_session.region_name
-            logging.info(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+            logging.warning(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
 
         if kms_client == None:
             kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
@@ -173,7 +173,7 @@ def create_singleregion_encrypt_key(aws_session=None, kms_client=None, kms_key_r
 
         if kms_client == None and kms_key_region == None:
             kms_key_region = aws_session.region_name
-            logging.info(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+            logging.warning(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
 
         if kms_client == None:
             kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
@@ -279,7 +279,7 @@ def add_kms_key_alias(aws_session=None, kms_client=None, kms_key_region=None, km
 
         if kms_client == None and kms_key_region == None:
             kms_key_region = aws_session.region_name
-            logging.info(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+            logging.warning(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
 
         if kms_client == None:
             kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
