@@ -41,7 +41,7 @@ def aws_connect(profile, region):
             aws_session = boto3.Session(profile_name=profile,region_name=region)
             # Print AWS Session Details using _print_aws_session_details() and then return to main()
             _print_aws_session_details(aws_session)
-            logging.debug(f"Account ID: {lookup_aws_account_id(aws_session)}")
+            logging.debug(f"Account ID: {get_aws_account_id(aws_session)}")
             logging.debug("Function: _aws_connect() completed")
             return aws_session
         # Test if AWS Session Token is set in the environment and if so use them to create a boto3 session
@@ -49,7 +49,7 @@ def aws_connect(profile, region):
             aws_session = boto3.Session()
             # Print AWS Session Details using _print_aws_session_details() and then return to main()
             _print_aws_session_details(aws_session)
-            logging.debug(f"Account ID: {lookup_aws_account_id(aws_session)}")
+            logging.debug(f"Account ID: {get_aws_account_id(aws_session)}")
             logging.debug("Function: _aws_connect() completed")
             return aws_session
 
@@ -63,6 +63,92 @@ def aws_connect(profile, region):
         return 1
     except:
         logging.error("Unexpected error in _aws_connect: {0}".format(sys.exc_info()[0]))
+        return 1
+
+
+def get_aws_account_id(aws_session):
+    """Lookup AWS Account ID
+
+    This function looks up the AWS Account ID using the AWS Session.
+
+    Args:
+        aws_session (boto3.session.Session): AWS Session
+
+    Returns:
+        str: AWS Account ID
+    """
+    try:
+        logging.debug(f"Function: get_aws_Account_id() started with args: aws_session = {aws_session}")
+
+        logging.debug("Looking up AWS Account ID")
+
+        aws_account_id = aws_session.client('sts').get_caller_identity().get('Account')
+
+        logging.debug(f"Returned AWS Account ID: {aws_account_id}")
+        logging.debug("Function: _get_aws_Account_id() completed")
+
+        return aws_account_id
+
+    except ClientError as e:
+        logging.error(f"Error in _get_aws_Account_id: {e}")
+        return 1
+    except:
+        logging.error(f"Unexpected error in _get_aws_Account_id: {sys.exc_info()[0]}")
+        return 1
+
+
+def session_connect(**kwargs):
+    """Session Connect
+
+    This function establishes a specified client connection to AWS using the passed AWS Session.
+
+    Args:
+        aws_session (boto3.session.Session): AWS Session
+        client_type (str): AWS Client Type e.g. ec2, s3, etc.
+        region (str): AWS Region
+
+    Returns:
+        client (boto3.client): AWS Client
+
+    Example:
+        client = session_connect(aws_session=aws_session, client_type='ec2', region='eu-west-1')
+
+    """
+    try:
+        logging.debug(f"Function: session_connect() started with args: {kwargs}")
+
+        logging.debug("Connecting to AWS")
+
+        if 'aws_session' in kwargs:
+            aws_session = kwargs['aws_session']
+        else:
+            logging.error("No AWS Session passed to session_connect()")
+            return 1
+
+        if 'client_type' in kwargs:
+            client_type = kwargs['client_type']
+        else:
+            logging.error("No client type passed to session_connect()")
+            return 1
+
+        if 'region' in kwargs:
+            region = kwargs['region']
+        else:
+            region = aws_session.region_name
+
+        client = aws_session.client(client_type, region_name=region)
+
+        logging.debug((f"Returning client session: {client}"))
+
+        logging.debug(f"Function: session_connect() completed")
+
+        return client
+
+    except ClientError as e:
+        logging.error(f"Client Error in session_connect(): {e}")
+        return 1
+    except:
+        logging.error(f"Unexpected error in session_connect(): {sys.exc_info()[0]}")
         return 1
 
 
@@ -189,32 +275,3 @@ def _check_aws_vars():
         return 1
 
 
-def lookup_aws_account_id(aws_session):
-    """Lookup AWS Account ID
-
-    This function looks up the AWS Account ID using the AWS Session.
-
-    Args:
-        aws_session (boto3.session.Session): AWS Session
-
-    Returns:
-        str: AWS Account ID
-    """
-    try:
-        logging.debug(f"Function: lookup_aws_account_id() started with args: aws_session = {aws_session}")
-
-        logging.debug("Looking up AWS Account ID")
-
-        aws_account_id = aws_session.client('sts').get_caller_identity().get('Account')
-
-        logging.debug(f"Returned AWS Account ID: {aws_account_id}")
-        logging.debug("Function: _lookup_aws_account_id() completed")
-
-        return aws_account_id
-
-    except ClientError as e:
-        logging.error(f"Error in _lookup_aws_account_id: {e}")
-        return 1
-    except:
-        logging.error(f"Unexpected error in _lookup_aws_account_id: {sys.exc_info()[0]}")
-        return 1

@@ -5,8 +5,8 @@
 This module contains functions to manage AWS KMS Keys.
 
 Author: Graham Watts
-Date: 2023-04-04
-Version: 1.0.1
+Date: 2023-04-09
+Version: 1.0.2
 
 Classes:
     N/A
@@ -21,12 +21,15 @@ Public Functions:
     print_kms_key_details(kms_key_arn=None, kms_key_id=None, kms_key_alias=None, kms_key_region=None, kms_client=None): Print the details of a KMS Key to logging.info.
 
 Internal Functions:
-
-    _create_kms_client(aws_session=None, kms_key_region=None): Create a KMS Client.
-
     _check_existing_kms_key_id(kms_client=None, kms_key_id=None): Check if a KMS Key ID exists.
 
     _check_existing_kms_key_alias(kms_client=None, kms_key_alias=None): Check if a KMS Key Alias exists.
+
+    _check_existing_kms_key_arn(kms_client=None, kms_key_arn=None): Check if a KMS Key ARN exists.
+
+    _print_kms_key_alias(kms_client=None, kms_key_alias=None): Print the details of a KMS Key Alias to logging.info.
+
+    _print_kms_key_rotation_policy(kms_client=None, kms_key_id=None): Print the details of a KMS Key Rotation Policy to logging.info.
 
 """
 
@@ -35,6 +38,7 @@ import logging
 
 # Import local modules
 import modules.output as output
+import modules.aws.connect as aws_connect
 
 # Import third party modules - see requirements.txt
 from botocore.exceptions import ClientError, ParamValidationError
@@ -68,10 +72,6 @@ def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=Non
     try:
         logging.debug(f"Function: check_existing_kms_key() started with args: aws_session = {aws_session}, kms_client = {kms_client}, kms_key_region = {kms_key_region}, kms_key_alias = {kms_key_alias}, kms_key_id = {kms_key_id}, kms_key_arn = {kms_key_arn}")
 
-        if aws_session == None and kms_client == None:
-            logging.error("No AWS Session or KMS Client provided")
-            return 1
-
         if kms_key_alias == None and kms_key_id == None and kms_key_arn == None:
             logging.error("No KMS Key Alias, KMS Key ID or KMS Key ARN provided")
             return 1
@@ -83,19 +83,17 @@ def check_existing_kms_key(aws_session=None, kms_client=None, kms_key_region=Non
             logging.error(f"KMS Key ARN {kms_key_arn} is not valid")
             return 1
 
-        if kms_client == None and kms_key_region == None:
-            kms_key_region = aws_session.region_name
-            logging.warning(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+        if aws_session == None and kms_client == None:
+            logging.error("No AWS Session or KMS Client provided")
+            return 1
 
         if kms_client == None:
-            kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
+            kms_client = aws_connect.session_connect(aws_session=aws_session, region=kms_key_region, client_type='kms')
 
         if kms_client == 1:
             logging.error(f"Error creating KMS Client")
             logging.debug(f"Function: check_existing_kms_key() completed")
             return 1
-
-        logging.info(f"Checking if KMS Key exists")
 
         # Setting a default value for key_arn variable to False
         key_arn = False
@@ -160,10 +158,6 @@ def create_singleregion_encrypt_key(aws_session=None, kms_client=None, kms_key_r
     try:
         logging.debug(f"Function: create_singleregion_encrypt_key() started with args: aws_session = {aws_session}, kms_client = {kms_client}, kms_key_region = {kms_key_region}, kms_key_alias = {kms_key_alias}, kms_key_spec = {kms_key_spec}, dry_run = {dry_run}")
 
-        if aws_session == None and kms_client == None:
-            logging.error("No AWS Session or KMS Client provided")
-            return 1
-
         if kms_key_alias == None and kms_key_id == None:
             logging.error("No KMS Key Alias or KMS Key ID provided")
             return 1
@@ -171,17 +165,20 @@ def create_singleregion_encrypt_key(aws_session=None, kms_client=None, kms_key_r
         if kms_key_alias != None and kms_key_alias.startswith('alias/') == False:
             kms_key_alias = 'alias/' + kms_key_alias
 
-        if kms_client == None and kms_key_region == None:
-            kms_key_region = aws_session.region_name
-            logging.warning(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+        if aws_session == None and kms_client == None:
+            logging.error("No AWS Session or KMS Client provided")
+            return 1
 
         if kms_client == None:
-            kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
+            kms_client = aws_connect.session_connect(aws_session=aws_session, region=kms_key_region, client_type='kms')
 
         if kms_client == 1:
             logging.error(f"Error creating KMS Client")
             logging.debug(f"Function: check_existing_kms_key() completed")
             return 1
+
+        if kms_key_region == None:
+            kms_key_region = kms_client.meta.region_name
 
         logging.info(f"Creating KMS Key in region {kms_key_region} with spec {kms_key_spec}")
 
@@ -206,7 +203,7 @@ def create_singleregion_encrypt_key(aws_session=None, kms_client=None, kms_key_r
             return 0
 
         kms_key = kms_client.create_key(
-            Description=f"Symmetric KMS Key for ENCRYPT_DECRYPT with spec {kms_key_spec}",
+            Description=f"Single region symmetric KMS Key for ENCRYPT_DECRYPT created by python script {__file__}",
             KeyUsage='ENCRYPT_DECRYPT',
             KeySpec=kms_key_spec,
             MultiRegion=False
@@ -214,8 +211,9 @@ def create_singleregion_encrypt_key(aws_session=None, kms_client=None, kms_key_r
 
         key_arn = kms_key['KeyMetadata']['Arn']
 
-        # Add Alias to KMS Key
-        alias_success = add_kms_key_alias(aws_session=aws_session, kms_client=kms_client, kms_key_region=kms_key_region, kms_key_alias=kms_key_alias, kms_key_arn=key_arn, dry_run=dry_run)
+        # Add Alias to KMS Key if provided
+        if kms_key_alias != None:
+            alias_success = add_kms_key_alias(aws_session=aws_session, kms_client=kms_client, kms_key_region=kms_key_region, kms_key_alias=kms_key_alias, kms_key_arn=key_arn, dry_run=dry_run)
 
         if alias_success == 1:
             logging.error(f"Error creating KMS Key {kms_key_alias}")
@@ -258,10 +256,6 @@ def add_kms_key_alias(aws_session=None, kms_client=None, kms_key_region=None, km
     try:
         logging.debug(f"Function: add_kms_key_alias() started with args: aws_session = {aws_session}, kms_client = {kms_client}, kms_key_region = {kms_key_region}, kms_key_alias = {kms_key_alias}, kms_key_arn = {kms_key_arn}, dry_run = {dry_run}")
 
-        if aws_session == None and kms_client == None:
-            logging.error("No AWS Session or KMS Client provided")
-            return 1
-
         if kms_key_alias == None:
             logging.error("No KMS Key Alias provided")
             return 1
@@ -277,12 +271,12 @@ def add_kms_key_alias(aws_session=None, kms_client=None, kms_key_region=None, km
             logging.error("KMS Key ARN does not start with arn:aws:kms:")
             return 1
 
-        if kms_client == None and kms_key_region == None:
-            kms_key_region = aws_session.region_name
-            logging.warning(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
+        if aws_session == None and kms_client == None:
+            logging.error("No AWS Session or KMS Client provided")
+            return 1
 
         if kms_client == None:
-            kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
+            kms_client = aws_connect.session_connect(aws_session=aws_session, region=kms_key_region, client_type='kms')
 
         if kms_client == 1:
             logging.error(f"Error creating KMS Client")
@@ -354,18 +348,14 @@ def print_kms_key_details(aws_session=None, kms_client=None, kms_key_region=None
             logging.error("No AWS Session or KMS Client provided")
             return 1
 
-        if aws_session == None and kms_key_region == None:
-            kms_key_region = aws_session.region_name
-            logging.info(f"KMS Key Region not provided, using region from AWS Session: {kms_key_region}")
-
         if kms_client == None:
-            kms_client = _create_kms_client(aws_session=aws_session, kms_key_region=kms_key_region)
+            kms_client = aws_connect.session_connect(aws_session=aws_session, region=kms_key_region, client_type='kms')
 
         if kms_key_arn == None and kms_key_id != None:
             kms_key_arn = _check_existing_kms_key_id(kms_client=kms_client, kms_key_id=kms_key_id)
 
         if kms_key_arn == None and kms_key_alias != None:
-            kms_key_arn = _check_existing_kms_key_alias(aws_session=aws_session, kms_client=kms_client, kms_key_region=kms_key_region, kms_key_alias=kms_key_alias)
+            kms_key_arn = _check_existing_kms_key_alias(kms_client=kms_client, kms_key_alias=kms_key_alias)
 
         if kms_key_arn == None:
             logging.error("No KMS Key ARN provided")
@@ -380,24 +370,33 @@ def print_kms_key_details(aws_session=None, kms_client=None, kms_key_region=None
         output.log_message_section("KMS Key Details", top=True, bottom=True)
         logging.info(f"KMS Key ID: {kms_key_details['KeyMetadata']['KeyId']}")
         logging.info(f"KMS Key ARN: {kms_key_details['KeyMetadata']['Arn']}")
-        logging.info(f"KMS Key Alias: {kms_key_details['KeyMetadata']['Aliases'][0]['AliasName']}")
         logging.info(f"KMS Key Description: {kms_key_details['KeyMetadata']['Description']}")
         logging.info(f"KMS Key Enabled: {kms_key_details['KeyMetadata']['Enabled']}")
+        logging.info(f"KMS Key Key Usage: {kms_key_details['KeyMetadata']['KeyUsage']}")
+        logging.info(f"KMS Key Key State: {kms_key_details['KeyMetadata']['KeyState']}")
         logging.info(f"KMS Key Customer Master Key Spec: {kms_key_details['KeyMetadata']['CustomerMasterKeySpec']}")
         logging.info(f"KMS Key Spec: {kms_key_details['KeyMetadata']['KeySpec']}")
         logging.info(f"KMS Key Creation Date: {kms_key_details['KeyMetadata']['CreationDate']}")
-        logging.info(f"KMS Key Deletion Date: {kms_key_details['KeyMetadata']['DeletionDate']}")
-        logging.info(f"KMS Key Key State: {kms_key_details['KeyMetadata']['KeyState']}")
-        logging.info(f"KMS Key Key Usage: {kms_key_details['KeyMetadata']['KeyUsage']}")
-        logging.info(f"KMS Key Rotation Enabled: {kms_key_details['KeyMetadata']['RotationEnabled']}")
-        logging.info(f"KMS Key Rotation Last Updated Date: {kms_key_details['KeyMetadata']['LastRotated']}")
-        logging.info(f"KMS Key Expiration Model: {kms_key_details['KeyMetadata']['ExpirationModel']}")
+        if kms_key_details['KeyMetadata']['KeyState'] == "PendingDeletion":
+            logging.info(f"KMS Key Deletion Date: {kms_key_details['KeyMetadata']['DeletionDate']}")
+            logging.info(f"KMS Key Pending Deletion In: {kms_key_details['KeyMetadata']['PendingDeletionWindowInDays']} days")
+        logging.info(f"KMS Key Manager: {kms_key_details['KeyMetadata']['KeyManager']}")
         logging.info(f"KMS Key Origin: {kms_key_details['KeyMetadata']['Origin']}")
+        if kms_key_details['KeyMetadata']['Origin'] == "EXTERNAL":
+            logging.info(f"KMS Key Expiration Model: {kms_key_details['KeyMetadata']['ExpirationModel']}")
+            if kms_key_details['KeyMetadata']['ExpirationModel'] == "KEY_MATERIAL_EXPIRES":
+                logging.info(f"KMS Key Expiration Date: {kms_key_details['KeyMetadata']['ValidTo']}")
         logging.info(f"KMS Key Encryption Algorithms: {kms_key_details['KeyMetadata']['EncryptionAlgorithms']}")
-        logging.info(f"KMS Key Signing Algorithms: {kms_key_details['KeyMetadata']['SigningAlgorithms']}")
-        logging.info(f"KMS Key Cloud HSM Cluster ID: {kms_key_details['KeyMetadata']['CloudHsmClusterId']}")
-        logging.info(f"KMS Key Cloud HSM Cluster Certificate: {kms_key_details['KeyMetadata']['CloudHsmClusterCertificate']}")
-        logging.info(f"KMS Key Tags: {kms_key_details['KeyMetadata']['Tags']}")
+        if kms_key_details['KeyMetadata']['KeyUsage'] == "SIGN_VERIFY":
+            logging.info(f"KMS Key Signing Algorithms: {kms_key_details['KeyMetadata']['SigningAlgorithms']}")
+        logging.info(f"KMS Key Multi Region Enabled: {kms_key_details['KeyMetadata']['MultiRegion']}")
+        if kms_key_details['KeyMetadata']['MultiRegion'] == True:
+            logging.info(f"KMS Key Multi Region Configuration Key Type: {kms_key_details['KeyMetadata']['MultiRegionConfiguration']['MultiRegionKeyType']}")
+            logging.info(f"KMS Key Multi Region Configuration Primary Key ARN: {kms_key_details['KeyMetadata']['MultiRegionConfiguration']['PrimaryKey']['Arn']}")
+            logging.info(f"KMS Key Multi Region Configuration Primary Key Region: {kms_key_details['KeyMetadata']['MultiRegionConfiguration']['PrimaryKey']['Region']}")
+            logging.info(f"KMS Key Multi Region Configuration Replica Keys: {kms_key_details['KeyMetadata']['MultiRegionConfiguration']['ReplicaKeys']}")
+        _print_kms_key_rotation_policy(kms_client=kms_client, kms_key_arn=kms_key_arn)
+        _print_kms_key_alias(kms_client=kms_client, kms_key_arn=kms_key_arn)
         output.log_message_section("End of KMS Key Details", top=True, bottom=True)
 
         return 0
@@ -549,48 +548,91 @@ def _check_existing_kms_key_arn(kms_client=None, kms_key_arn=None):
         return 1
 
 
-def _create_kms_client(aws_session=None, kms_key_region=None):
-    """Create KMS Client
+def _print_kms_key_alias(kms_client=None, kms_key_arn=None):
+    """Get KMS Key Alias
 
-    This internal function creates a KMS client session using the provided AWS session and KMS key region.
-
-    This function is called by other publicly exposed functions in this module and is not intended to be called directly.
+    This function prints all KMS Key Aliases for a given KMS Key ARN.
 
     Args:
-        aws_session (boto3.session): A boto3 session
-        kms_key_region (str): The AWS region where the KMS key is located
+        kms_client (boto3.client): A boto3 KMS client session
+        kms_key_arn (str): A KMS Key ARN
 
     Returns:
-        boto3.client: A boto3 KMS client session
+        int: 0 if successful, 1 if not
+
+    Example:
+        >>> _print_kms_key_alias(kms_client, "arn:aws:kms:eu-west-1:123456789012:key/12345678-1234-1234-1234-123456789012")
+        KMS Key Alias: alias/MyKeyAlias
 
     """
     try:
-        logging.debug(f"Function: _create_kms_client() started with args: aws_session = {aws_session}, kms_key_region = {kms_key_region}")
+        logging.debug(f"Function: _print_kms_key_alias() started with args: kms_client = {kms_client}, kms_key_arn = {kms_key_arn}")
 
-        logging.info(f"Creating KMS Client")
+        if kms_client == None:
+            logging.error("No KMS Client provided")
+            return 1
 
-        if aws_session == None:
-            logging.error("No AWS Session provided")
-            return False
+        if kms_key_arn == None:
+            logging.error("No KMS Key ARN provided")
+            return 1
 
-        if kms_key_region == None:
-            kms_client = aws_session.client('kms')
+        key_aliases = kms_client.list_aliases(KeyId=kms_key_arn)
+        # If there are one or more aliases for the KMS Key then print all allocated aliases
+        if len(key_aliases['Aliases']) > 0:
+            for key_alias in key_aliases['Aliases']:
+                logging.info(f"KMS Key Alias: {key_alias['AliasName']}")
+                logging.debug(f"Function: _print_kms_key_alias() completed")
+                return 0
 
-        if kms_key_region != None:
-            kms_client = aws_session.client('kms', region_name=kms_key_region)
+        logging.info(f"No KMS Key Alias found for KMS Key ARN: {kms_key_arn}")
+        logging.debug(f"Function: _print_kms_key_alias() completed")
+        return False
 
-        logging.debug(f"KMS Client created: {kms_client}")
-
-        logging.debug(f"Function: _create_kms_client() completed")
-
-        return kms_client
-
-    except ClientError as e:
-        logging.error(f"Client Error in _create_kms_client(): {e}")
-        return 1
-    except TypeError as e:
-        logging.error(f"Type Error in _create_kms_client(): {e}")
-        return 1
     except Exception as e:
-        logging.error(f"Unexpected error in _create_kms_client(): {e}")
+        logging.error(f"Unexpected error in _print_kms_key_alias(): {e}")
+        return 1
+
+
+def _print_kms_key_rotation_policy(kms_client=None, kms_key_arn=None):
+    """Print KMS Key Rotation Policy
+
+    This function prints the KMS Key Rotation Policy for a given KMS Key ARN.
+
+    Args:
+        kms_client (boto3.client): A boto3 KMS client session
+        kms_key_arn (str): A KMS Key ARN
+
+    Returns:
+        int: 0 if successful, 1 if not
+
+    Example:
+        >>> _print_kms_key_rotation_policy(kms_client, "arn:aws:kms:eu-west-1:123456789012:key/12345678-1234-1234-1234-123456789012")
+        KMS Key Rotation Policy: {"AutomaticallyAfterDays": 30}
+
+    """
+    try:
+        logging.debug(f"Function: _print_kms_key_rotation_policy() started with args: kms_client = {kms_client}, kms_key_arn = {kms_key_arn}")
+
+        if kms_client == None:
+            logging.error("No KMS Client provided")
+            return 1
+
+        if kms_key_arn == None:
+            logging.error("No KMS Key ARN provided")
+            return 1
+
+        key_rotation_policy = kms_client.get_key_rotation_status(KeyId=kms_key_arn)
+
+        if key_rotation_policy['KeyRotationEnabled'] == True:
+            logging.info(f"KMS Key Rotation Policy: {key_rotation_policy['KeyRotationEnabled']} - KMS Key Rotation is enabled")
+            logging.debug(f"Function: _print_kms_key_rotation_policy() completed")
+            return 0
+
+        if key_rotation_policy['KeyRotationEnabled'] == False:
+            logging.info(f"KMS Key Rotation Policy: {key_rotation_policy['KeyRotationEnabled']} - KMS Key Rotation is disabled")
+            logging.debug(f"Function: _print_kms_key_rotation_policy() completed")
+            return 0
+
+    except Exception as e:
+        logging.error(f"Unexpected error in _print_kms_key_rotation_policy(): {e}")
         return 1
