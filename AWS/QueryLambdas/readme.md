@@ -37,17 +37,13 @@ The script will then prompt the following questions:
 2022-09-07 13:54:32 [INFO] Available profiles:
 -------------------------
 default
-vcra-nonprod
-vcra-prod
-edge-prod
-vcra-play
-vcra-voip
-vcra-alexa
+my-profile
+prod
 -------------------------
 2022-09-07 13:54:32 [INFO] Do you want to use a profile (default: no)? (y/n): y
-2022-09-07 13:54:33 [INFO] Which profile do you want to use? (default: default): vcra-nonprod
-2022-09-07 13:54:38 [INFO] Using profile: vcra-nonprod
-2022-09-07 13:54:38 [INFO] Testing AWS connection using profile vcra-nonprod
+2022-09-07 13:54:33 [INFO] Which profile do you want to use? (default: default): my-profile
+2022-09-07 13:54:38 [INFO] Using profile: my-profile
+2022-09-07 13:54:38 [INFO] Testing AWS connection using profile my-profile
 2022-09-07 13:54:40 [INFO] AWS connection successful
 2022-09-07 13:54:40 [INFO] Available regions
 -------------------------
@@ -98,12 +94,12 @@ Please provide a list of regions to query (comma separated, default:us-east-1): 
 2022-09-07 13:55:01 [INFO] Querying the following regions:
 us-east-1
 us-east-2
-2022-09-07 13:55:02 [INFO] Querying AWS for Lambda functions using profile: vcra-nonprod
+2022-09-07 13:55:02 [INFO] Querying AWS for Lambda functions using profile: my-profile
 2022-09-07 13:55:02 [INFO] Querying us-east-1
 2022-09-07 13:55:04 [INFO] Querying us-east-2
 2022-09-07 13:55:06 [INFO] Creating CSV file
 2022-09-07 13:55:06 [INFO] CSV file created
-2022-09-07 13:55:07 [INFO] CSV file created: output/vcra-nonprod_2022-09-07_135501/vcra-nonprod_lambda_functions_.csv
+2022-09-07 13:55:07 [INFO] CSV file created: output/my-profile_2022-09-07_135501/my-profile_lambda_functions_.csv
 2022-09-07 13:55:07 [INFO] Script complete
 ```
 
@@ -135,7 +131,7 @@ This can be modified by changing the script variable `REQUIRED_FIELDS` to includ
 
 ## Output
 
-This script will create a child directory in the `./output` directory of the current directory of the repo.  The name of the directory will be either the `profile` name from the AWS CLI config or the `Access Key ID` provided to connect to the account followed by the date and time of the script execution; e.g. `vcra-nonprod_2022-09-06_165052`.
+This script will create a child directory in the `./output` directory of the current directory of the repo.  The name of the directory will be either the `profile` name from the AWS CLI config or the `Access Key ID` provided to connect to the account followed by the date and time of the script execution; e.g. `my-profile_2022-09-06_165052`.
 
 In the output directory the script will create a JSON file with full details on the lambdas in the account/region for each region queried where a response was provided.  Regions that can be connected to, but have no lambdas will create a JSON file with an empty array.  Regions that cannot be connected to will not create a JSON file.
 
@@ -147,26 +143,26 @@ Finally; the script will create a single CSV file containing the requested infor
 # Example directory structure
 .
 ├── output
-│   └── vcra-nonprod_2022-09-06_165006
-│       ├── lambda_functions_vcra-nonprod_ap-northeast-1_2022-09-06_165010.json
-│       ├── lambda_functions_vcra-nonprod_ap-northeast-2_2022-09-06_165013.json
-│       ├── lambda_functions_vcra-nonprod_ap-northeast-3_2022-09-06_165015.json
-│       ├── lambda_functions_vcra-nonprod_ap-south-1_2022-09-06_165017.json
-│       ├── lambda_functions_vcra-nonprod_ap-southeast-1_2022-09-06_165020.json
-│       ├── lambda_functions_vcra-nonprod_ap-southeast-2_2022-09-06_165024.json
-│       ├── lambda_functions_vcra-nonprod_ca-central-1_2022-09-06_165034.json
-│       ├── lambda_functions_vcra-nonprod_eu-central-1_2022-09-06_165045.json
-│       ├── lambda_functions_vcra-nonprod_eu-north-1_2022-09-06_165105.json
-│       ├── lambda_functions_vcra-nonprod_eu-north-1_2022-09-06_165107.json
-│       ├── lambda_functions_vcra-nonprod_eu-west-1_2022-09-06_165111.json
-│       ├── lambda_functions_vcra-nonprod_eu-west-2_2022-09-06_165113.json
-│       ├── lambda_functions_vcra-nonprod_eu-west-3_2022-09-06_165114.json
-│       ├── lambda_functions_vcra-nonprod_sa-east-1_2022-09-06_165729.json
-│       ├── lambda_functions_vcra-nonprod_us-east-1_2022-09-06_165732.json
-│       ├── lambda_functions_vcra-nonprod_us-east-2_2022-09-06_165735.json
-│       ├── lambda_functions_vcra-nonprod_us-west-1_2022-09-06_165736.json
-│       ├── lambda_functions_vcra-nonprod_us-west-2_2022-09-06_165738.json
-│       └── vcra-nonprod_lambda_functions_.csv
+│   └── my-profile_2022-09-06_165006
+│       ├── lambda_functions_my-profile_ap-northeast-1_2022-09-06_165010.json
+│       ├── lambda_functions_my-profile_ap-northeast-2_2022-09-06_165013.json
+│       ├── lambda_functions_my-profile_ap-northeast-3_2022-09-06_165015.json
+│       ├── lambda_functions_my-profile_ap-south-1_2022-09-06_165017.json
+│       ├── lambda_functions_my-profile_ap-southeast-1_2022-09-06_165020.json
+│       ├── lambda_functions_my-profile_ap-southeast-2_2022-09-06_165024.json
+│       ├── lambda_functions_my-profile_ca-central-1_2022-09-06_165034.json
+│       ├── lambda_functions_my-profile_eu-central-1_2022-09-06_165045.json
+│       ├── lambda_functions_my-profile_eu-north-1_2022-09-06_165105.json
+│       ├── lambda_functions_my-profile_eu-north-1_2022-09-06_165107.json
+│       ├── lambda_functions_my-profile_eu-west-1_2022-09-06_165111.json
+│       ├── lambda_functions_my-profile_eu-west-2_2022-09-06_165113.json
+│       ├── lambda_functions_my-profile_eu-west-3_2022-09-06_165114.json
+│       ├── lambda_functions_my-profile_sa-east-1_2022-09-06_165729.json
+│       ├── lambda_functions_my-profile_us-east-1_2022-09-06_165732.json
+│       ├── lambda_functions_my-profile_us-east-2_2022-09-06_165735.json
+│       ├── lambda_functions_my-profile_us-west-1_2022-09-06_165736.json
+│       ├── lambda_functions_my-profile_us-west-2_2022-09-06_165738.json
+│       └── my-profile_lambda_functions_.csv
 ```
 
 ```bash
@@ -191,7 +187,7 @@ FunctionName,FunctionArn,Runtime,LastModified,LastUpdateStatus
             "Timeout": 3,
             "MemorySize": 128,
             "LastModified": "2019-04-10T17:55:15.983+0000",
-            "CodeSha256": "UZjQ5pHcYcquDmqNtjqdxMKpaD7rMp9igyC3i4uGCaE=",
+            "CodeSha256": <redacted>,
             "Version": "$LATEST",
             "VpcConfig": {
                 "SubnetIds": [],
@@ -201,7 +197,7 @@ FunctionName,FunctionArn,Runtime,LastModified,LastUpdateStatus
             "Environment": {
                 "Variables": {
                     "AWS_ACCOUNT": "AWS Nonprod [N. Virginia]",
-                    "HOOK_URL": "https://hooks.slack.com/services/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"
+                    "HOOK_URL": <redacted>
                 }
             },
             "TracingConfig": {
@@ -227,7 +223,7 @@ FunctionName,FunctionArn,Runtime,LastModified,LastUpdateStatus
             "Timeout": 30,
             "MemorySize": 128,
             "LastModified": "2018-08-14T21:43:28.148+0000",
-            "CodeSha256": "U9p7MaiHRbXkDHvn6sqHNG9w8xDiAqKntspifzVUabg=",
+            "CodeSha256": <redacted>,
             "Version": "$LATEST",
             "TracingConfig": {
                 "Mode": "PassThrough"
@@ -244,4 +240,3 @@ FunctionName,FunctionArn,Runtime,LastModified,LastUpdateStatus
     ]
 }
 ```
-
